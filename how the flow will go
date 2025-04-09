@@ -1,0 +1,7 @@
+[You → HTML Form → JavaScript]
+ ↓
+[Send Login Data using fetch() → Flask Backend]
+ ↓
+[Flask handles it → Checks from MySQL → Responds]
+ ↓
+[JS shows "Login Success" or "Failed"]
