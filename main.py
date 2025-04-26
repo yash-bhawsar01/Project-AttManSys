@@ -2,111 +2,121 @@ import cv2
 import numpy as np
 import face_recognition
 import os
+import pandas as pd
 from datetime import datetime
-from openpyxl import load_workbook
-from openpyxl.utils import get_column_letter
 
-# Get the absolute path to the images folder inside 'facial_attendance' on Desktop
-desktop_path = os.path.join(os.path.expanduser("~"), "Desktop", "facial_attendance", "images")
+# Get the directory of this script
+base_path = os.path.dirname(os.path.abspath(__file__))
 
-# Roll numbers and corresponding student names
-student_data = {
-    150: "Yash",
-    151: "Yash Salvi",
-    149: "Vivek DeDwa"
-}
+# Load background image safely
+bg_path = os.path.join(base_path, 'background.png')
+bg_image = cv2.imread(bg_path)
+if bg_image is None:
+    raise FileNotFoundError("Background image not found.")
+if bg_image.shape[2] == 4:
+    bg_image = bg_image[:, :, :3]
 
-# Load images for all students
+# Load student Excel sheet
+excel_path = os.path.join(base_path, 'AI_department.xlsx')
+df = pd.read_excel(excel_path)
+
+# Ensure all date columns are treated as string type
+df.columns = [str(col) for col in df.columns]
+
+# Extract student details (Roll No and Name)
+df['Roll No'] = df['Roll No'].astype(str)
+roll_no_list = df['Roll No'].tolist()
+names_list = df['Name'].tolist()
+
+# Load known images
+path = os.path.join(base_path, 'images')
+if not os.path.exists(path):
+    raise FileNotFoundError(f"Image directory '{path}' not found.")
+
 images = []
-classnames = []
-for roll_no, name in student_data.items():
-    image_path = os.path.join(desktop_path, f"{roll_no}.jpg")  # Images named by roll numbers
-    curImg = cv2.imread(image_path)
-    if curImg is None:
-        print(f"Image {roll_no}.jpg could not be read.")
-        continue
-    images.append(curImg)
-    classnames.append(name)
+student_ids = []
+myList = os.listdir(path)
+for img_name in myList:
+    curImg = cv2.imread(os.path.join(path, img_name))
+    if curImg is not None:
+        images.append(curImg)
+        student_ids.append(os.path.splitext(img_name)[0])  # roll number
 
-# Encode faces function
+# Encode known faces
 def findEncodings(images):
     encodeList = []
     for img in images:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        face_encodings = face_recognition.face_encodings(img)
-        
-        if face_encodings:  # Check if any face encodings are found
-            encodeList.append(face_encodings[0])
-        else:
-            print("No face detected in one of the images.")
+        encodes = face_recognition.face_encodings(img)
+        if encodes:
+            encodeList.append(encodes[0])
     return encodeList
 
-# Save attendance to Excel function
-def markAttendance(roll_no, name):
-    # Get the path to save the attendance file in the same folder as main.py
-    attendance_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'attendance.xlsx')
-    
-    # Load the existing workbook and sheet
-    workbook = load_workbook(attendance_file)
-    sheet = workbook.active
-
-    # Check if roll number already exists in attendance
-    roll_numbers = [row[0].value for row in sheet.iter_rows(min_row=2, max_col=1, max_row=sheet.max_row)]
-    
-    if roll_no in roll_numbers:
-        # Find the row where the student's roll number is located
-        for row in sheet.iter_rows(min_row=2, max_col=1, max_row=sheet.max_row):
-            if row[0].value == roll_no:
-                present_column = get_column_letter(3)  # Assuming "Present" is in column 3 (C)
-                row_num = row[0].row
-                # Mark "Present" with a tick mark (✓)
-                sheet[f'{present_column}{row_num}'] = '✓'
-                # Add the current time and date
-                now = datetime.now()
-                timeStr = now.strftime('%H:%M:%S')
-                dateStr = now.strftime('%Y-%m-%d')
-                sheet[f'D{row_num}'] = timeStr
-                sheet[f'E{row_num}'] = dateStr
-                workbook.save(attendance_file)
-
-# Prepare encodings for all students
 encodeListKnown = findEncodings(images)
-print('Encoding Complete')
 
 # Start webcam
 cap = cv2.VideoCapture(0)
+if not cap.isOpened():
+    raise RuntimeError("Webcam not accessible.")
+
+cv2.namedWindow("Attendance System", cv2.WND_PROP_FULLSCREEN)
+cv2.setWindowProperty("Attendance System", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
+marked_students = set()
 
 while True:
     success, img = cap.read()
-    imgSmall = cv2.resize(img, (0, 0), fx=0.25, fy=0.25)
-    imgSmall = cv2.cvtColor(imgSmall, cv2.COLOR_BGR2RGB)
+    if not success:
+        continue
 
-    # Find faces and encodings in the current frame
-    facesCurFrame = face_recognition.face_locations(imgSmall)
-    encodesCurFrame = face_recognition.face_encodings(imgSmall, facesCurFrame)
+    imgS = cv2.resize(img, (0, 0), fx=0.25, fy=0.25)
+    imgS = cv2.cvtColor(imgS, cv2.COLOR_BGR2RGB)
 
-    for encodeFace, faceLoc in zip(encodesCurFrame, facesCurFrame):
+    faceCurFrame = face_recognition.face_locations(imgS)
+    encodeCurFrame = face_recognition.face_encodings(imgS, faceCurFrame)
+
+    # Prepare background
+    output_frame = bg_image.copy()
+
+    # Resize camera feed to fit into background layout
+    cam_frame = cv2.resize(img, (400, 480))
+    output_frame[120:600, 780:1180] = cam_frame
+
+    for encodeFace, faceLoc in zip(encodeCurFrame, faceCurFrame):
         matches = face_recognition.compare_faces(encodeListKnown, encodeFace)
         faceDis = face_recognition.face_distance(encodeListKnown, encodeFace)
+
         matchIndex = np.argmin(faceDis)
 
         if matches[matchIndex]:
-            name = classnames[matchIndex]
-            roll_no = list(student_data.keys())[matchIndex]  # Get roll number from the index
+            roll_no = student_ids[matchIndex]
+            if roll_no not in marked_students:
+                marked_students.add(roll_no)
+
+                # Get the current date in 'YYYY-MM-DD' format
+                current_date = datetime.now().strftime('%Y-%m-%d')
+
+                # Check if the current date is a valid column in the Excel sheet
+                if current_date in df.columns:
+                    df.loc[df['Roll No'] == roll_no, current_date] = '✓'
+                    df.to_excel(excel_path, index=False)
+                else:
+                    print(f"Date column '{current_date}' not found in the Excel sheet.")
+
+            # Get coordinates for the face location
             y1, x2, y2, x1 = faceLoc
             y1, x2, y2, x1 = y1*4, x2*4, y2*4, x1*4
-            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-            # Display name with a background color box around it
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            text = f"{name} ({roll_no})"
-            (w, h), _ = cv2.getTextSize(text, font, 0.8, 2)
-            cv2.rectangle(img, (x1, y1 - 35), (x1 + w, y1), (0, 255, 0), -1)  # Background box
-            cv2.putText(img, text, (x1 + 6, y1 - 6), font, 0.8, (255, 255, 255), 2)
-            markAttendance(roll_no, name)
+            name_index = roll_no_list.index(roll_no)
+            name = names_list[name_index]
 
-    cv2.imshow('Webcam - Press q to quit', img)
-    if cv2.waitKey(1) == ord('q'):
+            # Highlight the student's name
+            cv2.putText(output_frame, f'{name} ({roll_no})', (x1 + 780, y2 + 120 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+    cv2.imshow("Attendance System", output_frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 cap.release()
