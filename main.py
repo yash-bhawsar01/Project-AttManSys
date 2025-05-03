@@ -23,9 +23,9 @@ df = pd.read_excel(excel_path)
 # Ensure all date columns are treated as string type
 df.columns = [str(col) for col in df.columns]
 
-# Extract student details (Roll No and Name)
-df['Roll No'] = df['Roll No'].astype(str)
-roll_no_list = df['Roll No'].tolist()
+# Extract student details (Roll Number and Name)
+df['Roll Number'] = df['Roll Number'].astype(str)
+roll_no_list = df['Roll Number'].tolist()
 names_list = df['Name'].tolist()
 
 # Load known images
@@ -94,11 +94,22 @@ while True:
                 marked_students.add(roll_no)
 
                 # Get the current date in 'YYYY-MM-DD' format
-                current_date = datetime.now().strftime('%Y-%m-%d')
+                # Get the current date in Indian format
+                current_date = datetime.now().strftime('%d-%m-%Y')
+
+                # If date column doesn't exist, create it with '-' for all students
+                if current_date not in df.columns:
+                    df[current_date] = '-'
+
+                # Mark the detected student as present (✓)
+                df.loc[df['Roll Number'] == roll_no, current_date] = '✓'
+                df.to_excel(excel_path, index=False)
+
+
 
                 # Check if the current date is a valid column in the Excel sheet
                 if current_date in df.columns:
-                    df.loc[df['Roll No'] == roll_no, current_date] = '✓'
+                    df.loc[df['Roll Number'] == roll_no, current_date] = '✓'
                     df.to_excel(excel_path, index=False)
                 else:
                     print(f"Date column '{current_date}' not found in the Excel sheet.")
