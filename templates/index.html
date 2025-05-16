@@ -1,1 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Attendance Management System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 60px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            font-size: 2.5em;
+            animation: fadein 2s;
+        }
+        #menu {
+            display: none;
+            margin-top: 40px;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        @keyframes fadein {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <h1 id="mainHeading">Attendance Management System</h1>
 
+    <div id="menu">
+        <button onclick="startRecording()">Start Recording</button>
+        <button onclick="viewAttendance()">View Attendance</button>
+        <button onclick="viewStats()">View Student Stats</button>
+        <button onclick="exitApp()">Exit</button>
+    </div>
+
+    <div id="attendanceSection" style="display: none; margin-top: 30px;">
+        <h2>Select Date to View Attendance</h2>
+        <input type="date" id="attendanceDate">
+        <button onclick="fetchAttendance()">Show Attendance</button>
+        <div id="attendanceResult" style="margin-top: 20px;"></div>
+    </div>
+
+    <div id="statsSection" style="display: none; margin-top: 30px;">
+        <h2>Student Stats (Attendance %)</h2>
+        <div id="statsResult" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        setTimeout(() => {
+            document.getElementById("menu").style.display = "block";
+        }, 2000);
+
+        function startRecording() {
+            fetch('/start-recording').then(response => response.text()).then(alert);
+        }
+
+        function exitApp() {
+            fetch('/exit').then(response => response.text()).then(alert);
+        }
+
+        function viewAttendance() {
+            document.getElementById('attendanceSection').style.display = 'block';
+            document.getElementById('statsSection').style.display = 'none';
+        }
+
+        function fetchAttendance() {
+            const date = document.getElementById('attendanceDate').value;
+            if (!date) return alert("Please select a date.");
+
+            fetch(`/get-attendance?date=${date}`)
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('attendanceResult');
+                    if (data.error) {
+                        container.innerHTML = `<p style="color: red;">${data.error}</p>`;
+                        return;
+                    }
+
+                    let table = `<table border="1" cellpadding="10" style="margin:auto; text-align:left;">
+                                    <tr><th>Roll Number</th><th>Name</th><th>Status</th></tr>`;
+                    data.attendance.forEach(row => {
+                        table += `<tr><td>${row.roll}</td><td>${row.name}</td><td>${row.status}</td></tr>`;
+                    });
+                    table += `</table>`;
+                    container.innerHTML = table;
+                })
+                .catch(err => {
+                    document.getElementById('attendanceResult').innerHTML = "Error fetching data.";
+                    console.error(err);
+                });
+        }
+
+        function viewStats() {
+            document.getElementById('attendanceSection').style.display = 'none';
+            document.getElementById('statsSection').style.display = 'block';
+
+            fetch(`/get-stats`)
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('statsResult');
+                    if (data.error) {
+                        container.innerHTML = `<p style="color: red;">${data.error}</p>`;
+                        return;
+                    }
+
+                    let table = `<table border="1" cellpadding="10" style="margin:auto; text-align:left;">
+                                    <tr><th>Roll Number</th><th>Name</th><th>Attendance %</th></tr>`;
+                    data.stats.forEach(row => {
+                        table += `<tr><td>${row.roll}</td><td>${row.name}</td><td>${row.stats}</td></tr>`;
+                    });
+                    table += `</table>`;
+                    container.innerHTML = table;
+                })
+                .catch(err => {
+                    document.getElementById('statsResult').innerHTML = "Error fetching data.";
+                    console.error(err);
+                });
+        }
+    </script>
+</body>
+</html>
