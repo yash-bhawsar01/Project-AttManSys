@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, url_for
 import subprocess
 import os
 import signal
@@ -6,7 +6,7 @@ import pandas as pd
 import platform
 import webbrowser
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', template_folder='templates')
 
 @app.route('/')
 def home():
@@ -17,12 +17,8 @@ def start_recording():
     try:
         python_cmd = 'python' if platform.system() == 'Windows' else 'python3'
         script_path = os.path.join(os.path.dirname(__file__), 'main.py')
-
-        subprocess.Popen(
-            [python_cmd, script_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
+        subprocess.Popen([python_cmd, script_path],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return "Started face recognition (main.py)"
     except Exception as e:
         return f"Error: {str(e)}"
@@ -41,7 +37,6 @@ def get_attendance():
     try:
         date_parts = date_param.split("-")
         formatted_date = f"{date_parts[2]}-{date_parts[1]}-{date_parts[0]}"
-
         excel_path = os.path.join(os.path.dirname(__file__), "AI_department.xlsx")
         df = pd.read_excel(excel_path)
 
@@ -84,6 +79,5 @@ def get_stats():
         return jsonify({'error': str(e)})
 
 if __name__ == '__main__':
-    
     webbrowser.open('http://127.0.0.1:5000')
     app.run(debug=True)
