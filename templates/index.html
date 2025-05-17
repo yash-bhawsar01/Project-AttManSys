@@ -2,127 +2,209 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Attendance Management System</title>
+    <title>Face Recognition Attendance</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f4f8;
+            color: #1e3a8a;
+        }
+
+        .content {
+            padding-bottom: 220px; /* Make room for the footer */
+            overflow-y: auto;
+            max-height: calc(100vh - 220px);
+        }
+
+        header {
             text-align: center;
-            margin-top: 60px;
-            background-color: #f4f4f4;
+            padding: 20px;
         }
-        h1 {
-            font-size: 2.5em;
-            animation: fadein 2s;
+
+        header img {
+            height: 100px;
         }
+
+        h1#mainHeading {
+            text-align: center;
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+
         #menu {
-            display: none;
-            margin-top: 40px;
+            text-align: center;
+            margin-bottom: 20px;
         }
-        button {
-            padding: 15px 30px;
-            font-size: 18px;
-            margin: 10px;
+
+        #menu button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
             cursor: pointer;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
         }
-        @keyframes fadein {
-            from { opacity: 0; }
-            to { opacity: 1; }
+
+        .section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        #attendanceResult, #statsResult {
+            max-width: 90%;
+            margin: auto;
+            text-align: left;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table th, table td {
+            padding: 10px;
+            border: 1px solid #93c5fd;
+            text-align: left;
+        }
+
+        table th {
+            background-color: #bfdbfe;
+        }
+
+        footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background-color: #e0f2fe;
+            color: #1e3a8a;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            padding: 20px 40px;
+            box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        .footer-left, .footer-right {
+            max-width: 50%;
+        }
+
+        .footer-left p, .footer-right p {
+            margin: 5px 0;
+        }
+
+        input[type="date"] {
+            padding: 8px;
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
+<div class="content">
+    <header>
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Attendance System Logo">
+    </header>
+
     <h1 id="mainHeading">Attendance Management System</h1>
 
     <div id="menu">
         <button onclick="startRecording()">Start Recording</button>
-        <button onclick="viewAttendance()">View Attendance</button>
-        <button onclick="viewStats()">View Student Stats</button>
+        <button onclick="showSection('attendanceSection')">View Attendance</button>
+        <button onclick="showSection('statsSection')">View Student Stats</button>
         <button onclick="exitApp()">Exit</button>
     </div>
 
-    <div id="attendanceSection" style="display: none; margin-top: 30px;">
+    <div id="attendanceSection" class="section">
         <h2>Select Date to View Attendance</h2>
         <input type="date" id="attendanceDate">
         <button onclick="fetchAttendance()">Show Attendance</button>
-        <div id="attendanceResult" style="margin-top: 20px;"></div>
+        <div id="attendanceResult"></div>
     </div>
 
-    <div id="statsSection" style="display: none; margin-top: 30px;">
+    <div id="statsSection" class="section" style="display:none;">
         <h2>Student Stats (Attendance %)</h2>
-        <div id="statsResult" style="margin-top: 20px;"></div>
+        <div id="statsResult"></div>
     </div>
+</div>
 
-    <script>
-        setTimeout(() => {
-            document.getElementById("menu").style.display = "block";
-        }, 2000);
+<footer>
+    <div class="footer-left">
+        <p><strong>A Software Engineering (BT-402) Project</strong><br>[SESSION → 2024-25]</p>
+        <p><em><strong>Submitted by:</strong></em></p>
+        <p>1. Vivek Dewda (0827AL231149)</p>
+        <p>2. Yash Bhawsar (0827AL231150)</p>
+        <p>3. Yash Salvi (0827AL231151)</p>
+    </div>
+    <div class="footer-right">
+        <p><strong><em>Submitted to:</em></strong><br>Mr. Devendra Singh</p>
+    </div>
+</footer>
 
-        function startRecording() {
-            fetch('/start-recording').then(response => response.text()).then(alert);
+<script>
+    function startRecording() {
+        fetch('/start-recording').then(res => res.text()).then(alert);
+    }
+
+    function exitApp() {
+        fetch('/exit').then(res => res.text()).then(alert);
+    }
+
+    function showSection(sectionId) {
+        document.getElementById('attendanceSection').style.display = 'none';
+        document.getElementById('statsSection').style.display = 'none';
+        document.getElementById(sectionId).style.display = 'block';
+    }
+
+    function fetchAttendance() {
+        const date = document.getElementById('attendanceDate').value;
+        if (!date) {
+            alert("Please select a date.");
+            return;
         }
-
-        function exitApp() {
-            fetch('/exit').then(response => response.text()).then(alert);
-        }
-
-        function viewAttendance() {
-            document.getElementById('attendanceSection').style.display = 'block';
-            document.getElementById('statsSection').style.display = 'none';
-        }
-
-        function fetchAttendance() {
-            const date = document.getElementById('attendanceDate').value;
-            if (!date) return alert("Please select a date.");
-
-            fetch(`/get-attendance?date=${date}`)
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('attendanceResult');
-                    if (data.error) {
-                        container.innerHTML = `<p style="color: red;">${data.error}</p>`;
-                        return;
-                    }
-
-                    let table = `<table border="1" cellpadding="10" style="margin:auto; text-align:left;">
-                                    <tr><th>Roll Number</th><th>Name</th><th>Status</th></tr>`;
+        fetch(`/get-attendance?date=${date}`)
+            .then(res => res.json())
+            .then(data => {
+                const container = document.getElementById('attendanceResult');
+                if (data.error) {
+                    container.innerHTML = `<p style="color:red;">${data.error}</p>`;
+                } else {
+                    let html = "<table><tr><th>Roll Number</th><th>Name</th><th>Status</th></tr>";
                     data.attendance.forEach(row => {
-                        table += `<tr><td>${row.roll}</td><td>${row.name}</td><td>${row.status}</td></tr>`;
+                        html += `<tr><td>${row.roll}</td><td>${row.name}</td><td>${row.status}</td></tr>`;
                     });
-                    table += `</table>`;
-                    container.innerHTML = table;
-                })
-                .catch(err => {
-                    document.getElementById('attendanceResult').innerHTML = "Error fetching data.";
-                    console.error(err);
-                });
-        }
+                    html += "</table>";
+                    container.innerHTML = html;
+                }
+            });
+    }
 
-        function viewStats() {
-            document.getElementById('attendanceSection').style.display = 'none';
-            document.getElementById('statsSection').style.display = 'block';
-
-            fetch(`/get-stats`)
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('statsResult');
-                    if (data.error) {
-                        container.innerHTML = `<p style="color: red;">${data.error}</p>`;
-                        return;
-                    }
-
-                    let table = `<table border="1" cellpadding="10" style="margin:auto; text-align:left;">
-                                    <tr><th>Roll Number</th><th>Name</th><th>Attendance %</th></tr>`;
+    function fetchStats() {
+        fetch(`/get-stats`)
+            .then(res => res.json())
+            .then(data => {
+                const container = document.getElementById('statsResult');
+                if (data.error) {
+                    container.innerHTML = `<p style="color:red;">${data.error}</p>`;
+                } else {
+                    let html = "<table><tr><th>Roll Number</th><th>Name</th><th>Attendance %</th></tr>";
                     data.stats.forEach(row => {
-                        table += `<tr><td>${row.roll}</td><td>${row.name}</td><td>${row.stats}</td></tr>`;
+                        html += `<tr><td>${row.roll}</td><td>${row.name}</td><td>${row.stats}</td></tr>`;
                     });
-                    table += `</table>`;
-                    container.innerHTML = table;
-                })
-                .catch(err => {
-                    document.getElementById('statsResult').innerHTML = "Error fetching data.";
-                    console.error(err);
-                });
-        }
-    </script>
+                    html += "</table>";
+                    container.innerHTML = html;
+                }
+            });
+    }
+
+    // Automatically fetch stats when stats section is shown
+    document.querySelector('button[onclick="showSection(\'statsSection\')"]').addEventListener('click', fetchStats);
+</script>
 </body>
 </html>
